@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>threejs-basic-geometry</title>
+    <style>
+        body{
+            font-family: Monospace;
+            background: #f0f0f0;
+            margin: 0px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<script type="text/javascript" src="lib/three.js"></script>
+<script type="text/javascript" src="lib/Detector.js"></script>
+<script type="text/javascript">
+
+    //检测webgl的支持情况
+    if(!Detector.webgl) {Detector.addGetWebGLMessage();}
+    var container;
+    var camera, scene, renderer;
+    main();
+    render();
+    animate();
+    myCameraTweenByAnyAxis(camera, angle, segs, during);
+    //主函数
+    function main(){
+        //添加一个div元素
+        container = document.createElement('div')
+        document.body.appendChild(container);
+
+        scene = new THREE.Scene();//创建一个新场景
+        //添加一个透视相机
+        camera = new THREE.PerspectiveCamera(30,
+                      window.innerWidth/window.innerHeight, 1, 1000);
+        camera.position.set(100, 50 , 50);//设置相机位置
+        camera.lookAt(new THREE.Vector3(0,20,0));//让相机指向原点
+        //渲染
+        //antialias:true增加抗锯齿效果
+        renderer = new THREE.WebGLRenderer({antialias:true});
+        renderer.setClearColor(new THREE.Color(0x000000));//设置窗口背景颜色为黑
+        renderer.setSize(window.innerWidth, window.innerHeight);//设置窗口尺寸
+        //将renderer关联到container，这个过程类似于获取canvas元素
+        container.appendChild(renderer.domElement);
+
+        //给场景添加光源
+        //自然光
+        var ambientLight = new THREE.AmbientLight( 0x606060 );
+        scene.add( ambientLight );
+        //平行光源
+        var directionalLight = new THREE.DirectionalLight( 0xffffff );
+        directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
+        scene.add( directionalLight );
+        plane();
+        sphere();
+
+    }
+    //创建一个平面
+    function plane(){
+        var planeGeo = new THREE.PlaneGeometry(100,100,10,10);//创建平面
+        var planeMat = new THREE.MeshLambertMaterial({  //创建材料
+            color:0x666666,
+            wireframe:true
+        });
+        var planeMesh = new THREE.Mesh(planeGeo, planeMat);//创建网格模型
+        planeMesh.position.set(0, 0, -20);//设置平面的坐标
+        planeMesh.rotation.x = -0.5 * Math.PI;//将平面绕X轴逆时针旋转90度
+        scene.add(planeMesh);//将平面添加到场景中
+    }
+
+    //创建一个球
+    
+    function sphere(){
+
+        var SPHx = 10, SPHy = 10;
+        var sphereGeo = new THREE.SphereGeometry(20, SPHx, SPHy);//创建球体 先粗糙一点，总共有2xy-2x个面 x*(Y-1)+2个顶点   面：2x(y-2)+2x
+        var sphereSmall = new THREE.SphereGeometry(0.5 , SPHx, SPHy);
+        //console.log(sphereGeo.faces);
+        sphereGeo.faces.forEach(function(face){ // loop through faces
+            
+            var RGB_R=(face.normal.x+1)/2;
+            var RGB_G=(face.normal.y+1)/2;
+            var RGB_B=(face.normal.z+1)/2;
+            face.color.setRGB(RGB_R,RGB_G,RGB_B); // set the color of the face (red)
+
+    
+        })
+
+        sphereSmall.faces.forEach(function(face){ // loop through faces
+                face.color.setHex(0xFF0000); // set the color of the face (red)
+        })
+            //Hansi Note: I try to alter the color of small sphere on the vertiecs, but it didn't work.
+
+        var sphereMat = new THREE.MeshNormalMaterial({//创建材料
+            //color:0x0000FF,
+            //wireframe:false,
+            wireframe:true,
+            //color: 0xffff00
+            //vertexColors: THREE.FaceColors // use face colors
+        });
+
+        var sphereMat2 = new THREE.MeshNormalMaterial({//创建材料
+            //color:0x0000FF,
+            wireframe:false,
+            //wireframe:true,
+            //color: 0xffff00
+            //vertexColors: THREE.FaceColors // use face colors
+        });
+
+        var lineMat = new THREE.LineBasicMaterial({//创建材料
+            color:0x0000FF,//Blue
+        });
+
+        var lineMat2 = new THREE.LineBasicMaterial({//创建材料
+            color:0xFF0000,//Red
+        });
+
+        var lineMat3 = new THREE.LineBasicMaterial({//创建材料
+            color:0x00FF00,//Green
+        });
+        
+
+
+        var sphereMesh = new THREE.Mesh(sphereGeo, sphereMat);//创建球体网格模型
+        var sphereMesh2= new THREE.Mesh(sphereSmall, sphereMat2);
+
+        sphereMesh.position.set(0, 20, 0);//设置球的坐标
+        scene.add(sphereMesh);//将球体添加到场景
+
+
+        //console.log(sphereGeo.vertices);
+
+
+        sphereGeo.vertices.forEach(function(item){
+            var Xc =item.x;
+            var Yc =item.y+20;
+            var Zc =item.z;
+            var newMesh = sphereMesh2.clone();
+            newMesh.position.set(Xc,Yc,Zc);
+            //console.log(Xc);
+             scene.add(newMesh);//将球体添加到场景
+
+            //求单位向量
+            var nXc=Xc/Math.sqrt(Xc*Xc+(Yc-20)*(Yc-20)+Zc*Zc);
+            var nYc=(Yc-20)/Math.sqrt(Xc*Xc+(Yc-20)*(Yc-20)+Zc*Zc);
+            var nZc=Zc/Math.sqrt(Xc*Xc+(Yc-20)*(Yc-20)+Zc*Zc);
+            var newOrg = new THREE.Vector3( Xc, Yc, Zc );//新原点 
+            //var UnitV = new THREE.Vector3( nXc, nYc, nZc );//单位向量w 
+            var npointX=Xc+5*nXc;
+            var npointY=Yc+5*nYc;
+            var npointZ=Zc+5*nZc;
+            var newPoint = new THREE.Vector3( npointX, npointY,npointZ);
+            var Ageo = new THREE.Geometry();
+            Ageo.vertices.push(newOrg);
+            Ageo.vertices.push(newPoint);
+            var line=new THREE.Line(Ageo,lineMat);
+            scene.add(line);//finished add W(blue)
+
+            //b1 vector
+            b1X=(1-nXc*nXc)/(1+nZc);
+            b1Y=((-1)*nXc*nYc)/(1+nZc);
+            b1Z=((-1)*nXc);
+            var b1Xn=b1X/Math.sqrt(b1X*b1X+b1Y*b1Y+b1Z*b1Z);
+            var b1Yn=b1Y/Math.sqrt(b1X*b1X+b1Y*b1Y+b1Z*b1Z);
+            var b1Zn=b1Z/Math.sqrt(b1X*b1X+b1Y*b1Y+b1Z*b1Z);
+            //var tempcount = b1Xn*b1Xn+b1Yn*b1Yn+b1Zn*b1Zn;
+            //console.log(tempcount);
+            var U_X=Xc+3*b1Xn;
+            var U_Y=Yc+3*b1Yn;
+            var U_Z=Zc+3*b1Zn;
+            b2X=((-1)*nXc*nYc)/(1+nZc);
+            b2Y=(1-nYc*nYc)/(1+nZc);
+            b2Z=((-1)*nYc);
+            var b2Xn=b2X/Math.sqrt(b2X*b2X+b2Y*b2Y+b2Z*b2Z);
+            var b2Yn=b2Y/Math.sqrt(b2X*b2X+b2Y*b2Y+b2Z*b2Z);
+            var b2Zn=b2Z/Math.sqrt(b2X*b2X+b2Y*b2Y+b2Z*b2Z);
+            var V_X=Xc+5*b2Xn;
+            var V_Y=Yc+5*b2Yn;
+            var V_Z=Zc+5*b2Zn;
+            var newU  = new THREE.Vector3(U_X,U_Y,U_Z);
+            var Ageo2 = new THREE.Geometry();
+            Ageo2.vertices.push(newOrg);
+            Ageo2.vertices.push(newU);
+            var line2=new THREE.Line(Ageo2,lineMat2);
+            scene.add(line2);
+            var newV  = new THREE.Vector3(V_X,V_Y,V_Z);
+            var Ageo3 = new THREE.Geometry();
+            Ageo3.vertices.push(newOrg);
+            Ageo3.vertices.push(newV);
+            var line3=new THREE.Line(Ageo3,lineMat3);
+            scene.add(line3);
+            var temptest = V_X*U_X+V_Y*U_Y+V_Z*U_Z;
+            console.log(temptest);
+
+        })
+      
+    }
+
+   
+    //渲染
+    function render(){
+
+
+        var timer = Date.now()*0.0005;
+        camera.position.x=Math.cos(timer)*150;
+        camera.position.z = Math.sin(timer)*150;
+        camera.lookAt(new THREE.Vector3(0,20,0));//让相机指向原点
+
+
+
+
+
+        renderer.render(scene, camera);
+    }
+
+    function animate(){
+        requestAnimationFrame(animate);
+        render();
+    }
+
+
+</script>
+</body>
+</html>
